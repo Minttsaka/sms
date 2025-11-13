@@ -2,8 +2,8 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Sidebar } from "@/components/sidebar"
-import { TopNavbar } from "@/components/top-navbar"
+import { Sidebar } from "@/components/navigation/sidebar"
+import { TopNavbar } from "@/components/navigation/top-navbar"
 import { MobileSidebar } from "@/components/mobile-sidebar"
 import { Suspense } from "react"
 
