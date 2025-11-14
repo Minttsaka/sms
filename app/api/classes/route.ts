@@ -26,19 +26,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Transform data to include counts
-     const classesWithCounts = classes.map((cls) => ({
-      id: cls.id,
-      name: cls.name,
-      section: cls.section,
-      academicYear: cls.academicYear,
-      capacity: cls.capacity,
-      roomNumber: cls.roomNumber,
-      studentCount: cls._count.students,
-      teacherCount: cls._count.teachers,
-    }))
-
-    return NextResponse.json({ classes: classesWithCounts })
+    return NextResponse.json({ classes })
   } catch (error) {
     console.error("[v0] Fetch classes error:", error)
     return NextResponse.json({ error: "Failed to fetch classes" }, { status: 500 })
