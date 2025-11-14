@@ -1,0 +1,410 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "./packages/lib/generated/prisma"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum InstitutionType {
+  PRIMARY
+  SECONDARY
+}
+
+enum InstitutionPlan {
+  BASIC
+  STANDARD
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Institution {
+  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  institutionType    InstitutionType    @default(PRIMARY)
+  address            String
+  city               String
+  state              String
+  country            String
+  phone              String
+  email              String
+  website            String?
+  plan               InstitutionPlan    @default(BASIC)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users UsersOnInstitution[]
+
+  classes  Class[]
+  students Student[]
+  teachers TeacherOnInstitution[]
+  invoices Invoice[]
+  messages Message[]
+}
+
+model UsersOnInstitution {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String      @db.ObjectId
+  institutionId String      @db.ObjectId
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  firstName   String
+  middleName  String?
+  lastName    String
+  dateOfBirth DateTime
+  role        Role
+  email       String    @unique
+  password    String
+  avatar      String?
+  phone       String?
+  isActive    Boolean   @default(true)
+  lastlogin   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  student Student[]
+  teacher Teacher[]
+  parent  UserToParent[]
+
+  institutions UsersOnInstitution[]
+
+  sentMessages Message[]
+}
+
+// Enhanced Student Model for Comprehensive Enrollment
+model Student {
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String? @db.ObjectId
+  institutionId String  @db.ObjectId
+
+  StudentDocument StudentDocument[]
+
+  // Basic Information
+  firstName       String
+  middleName      String?
+  lastName        String
+  admissionNumber String?
+  dateOfBirth     DateTime?
+  gender          String? // male, female, other
+  bloodGroup      String?
+  address         String?
+
+  // Academic Information
+  gradeApplying String?
+  academicYear  String?
+  classId       String? @db.ObjectId
+
+  // Contact Information
+  phone String?
+  email String?
+
+  // Guardian Information (stored as JSON array)
+  guardians Json? // Array of guardian objects
+
+  // Biometric Data
+  fingerprintEnrolled Boolean @default(false)
+  fingerprintData     Json? // Stores fingerprint template data
+  faceData            Json? // Optional: for face recognition
+
+  // Documents (stored as JSON array)
+  documents Json? // Array of document objects with type, url, uploadDate
+
+  // Photo
+  photo String? // URL or base64 of student photo
+
+  // Emergency Contacts
+  emergencyContacts Json? // Array of emergency contact objects
+
+  // Medical Information
+  medicalConditions String?
+  allergies         String?
+  medications       String?
+
+  // Previous School Information
+  previousSchool String?
+  previousGrade  String?
+  transferReason String?
+
+  // Enrollment Status
+  enrollmentStatus String    @default("pending") // pending, approved, rejected, enrolled
+  enrollmentDate   DateTime?
+
+  // Additional Information
+  nationality       String?
+  religion          String?
+  languagesSpoken   String[] @default([])
+  specialNeeds      String?
+  transportRequired Boolean  @default(false)
+
+  // System Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user        User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  class       Class?      @relation(fields: [classId], references: [id])
+
+  parents   Parent[]
+  parentIds String[] @db.ObjectId
+
+  enrollments Enrollment[]
+  attendances Attendance[]
+  grades      Grade[]
+  invoices    Invoice[]    @relation("StudentInvoices")
+
+  // Compound unique index
+  @@unique([institutionId, admissionNumber])
+  @@index([institutionId, enrollmentStatus])
+  @@index([classId])
+}
+
+model UserToParent {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String @db.ObjectId
+  parentId String @db.ObjectId
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
+}
+
+// Guardian/Parent Model - Enhanced
+model Parent {
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  studentId     String? @unique @db.ObjectId
+  institutionId String  @db.ObjectId
+
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Basic Information
+  firstName  String
+  middleName String?
+  lastName   String
+  email      String
+  phone      String
+
+  user UserToParent[]
+
+  // Additional Information
+  occupation   String?
+  relationship String? // Father, Mother, Guardian, Other
+  address      String?
+
+  // Contact Preferences
+  isPrimaryContact     Boolean @default(false)
+  isEmergencyContact   Boolean @default(false)
+  preferredContactTime String?
+
+  // System Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([institutionId])
+  @@index([email])
+}
+
+// Document Model (if you want to store documents separately instead of JSON)
+// This is optional - you can use JSON in Student model or separate model
+model StudentDocument {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  studentId String? @db.ObjectId
+
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  documentType String // birth_certificate, medical_records, etc.
+  documentName String
+  documentUrl  String // S3 URL or file path
+  fileSize     Int?
+  mimeType     String?
+
+  uploadedAt DateTime @default(now())
+  uploadedBy String?  @db.ObjectId
+
+  verified   Boolean   @default(false)
+  verifiedBy String?   @db.ObjectId
+  verifiedAt DateTime?
+
+  @@index([studentId])
+}
+
+model TeacherOnInstitution {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId     String      @db.ObjectId
+  institutionId String      @db.ObjectId
+  teacher       Teacher     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+}
+
+model Teacher {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String?   @db.ObjectId
+  firstName      String
+  middleName     String?
+  lastName       String
+  email          String?
+  phone          String
+  avatar         String?
+  employeeNumber String?
+  subjects       String[] // subject names or IDs
+  qualification  String?
+  experience     Int? // years of experience
+  salary         Float?
+  joinDate       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // relations
+  user        User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution TeacherOnInstitution[]
+  classes     TeacherOnClass[]
+}
+
+model TeacherOnClass {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId String  @db.ObjectId
+  classId   String  @db.ObjectId
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+}
+
+model Class {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  institutionId String   @db.ObjectId
+  name          String // e.g., "Grade 10", "Form 4"
+  section       String? // e.g., "A", "B"
+  academicYear  String? // e.g., "2024-2025"
+  capacity      Int?
+  roomNumber    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // relations
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  students   Student[]
+  teachers   TeacherOnClass[]
+  teacherIds String[]
+
+  enrollments Enrollment[]
+  attendances Attendance[]
+  timetables  Timetable[]
+}
+
+model Enrollment {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId    String   @db.ObjectId
+  classId      String   @db.ObjectId
+  academicYear String
+  enrollDate   DateTime @default(now())
+  status       String   @default("ACTIVE") // ACTIVE, COMPLETED, WITHDRAWN
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId String   @db.ObjectId
+  classId   String   @db.ObjectId
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  date      DateTime
+  status    String // PRESENT, ABSENT, LATE, EXCUSED
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Grade {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId    String   @db.ObjectId
+  subject      String
+  examType     String? // Midterm, Final, Quiz, Assignment
+  score        Float
+  maxScore     Float    @default(100)
+  grade        String? // A, B, C, D, F
+  term         String // Term 1, Term 2, Semester 1, etc.
+  academicYear String
+  remarks      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Timetable {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  classId   String   @db.ObjectId
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  dayOfWeek Int // 0 = Sunday, 1 = Monday, etc.
+  startTime String // e.g., "09:00"
+  endTime   String // e.g., "10:00"
+  subject   String
+  teacherId String?  @db.ObjectId
+  room      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  institutionId String    @db.ObjectId
+  studentId     String?   @db.ObjectId
+  invoiceNumber String    @unique
+  description   String?
+  amount        Float
+  amountPaid    Float     @default(0)
+  status        String // PAID, UNPAID, PARTIAL, OVERDUE
+  dueDate       DateTime?
+  paidDate      DateTime?
+  paymentMethod String? // Cash, Bank Transfer, Card, etc.
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  institution Institution? @relation(fields: [institutionId], references: [id])
+
+  // relations
+  student Student? @relation("StudentInvoices", fields: [studentId], references: [id])
+}
+
+model Message {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  fromUserId    String    @db.ObjectId
+  toUserId      String    @db.ObjectId
+  institutionId String    @db.ObjectId
+  subject       String?
+  body          String
+  isRead        Boolean   @default(false)
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  fromUser    User        @relation(fields: [fromUserId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+}
