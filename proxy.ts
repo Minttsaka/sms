@@ -5,7 +5,8 @@ import { auth } from "./app/authhandlers/auth";
 const protectedRoutes = ["/dashboard"];
 const publicRoutes = ["/login", "/register", "/"];
 const allowedOrigins = [
-  'https://sms-two-sepia.vercel.app',
+  'http://localhost:3000',
+  'https://sms-two-sepia.vercel.app/',
 ];
 
 export default async function proxy(request: NextRequest) {
