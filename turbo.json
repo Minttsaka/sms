@@ -1,5 +1,0 @@
-    {
-        "copy:prisma": {
-          "cache": false
-        }
-    }

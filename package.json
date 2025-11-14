@@ -1,5 +1,5 @@
 {
-  "name": "my-v0-project",
+  "name": "dctfusion",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,10 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
-    "postinstall": "cd packages/database && turbo run prisma:generate && mkdir -p ../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/@prisma/client && cp ../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-rhel-openssl-3.0.x.so.node ../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/@prisma/client/"
-  },
-  "prisma": {
-    "schema": "./prisma/schema.prisma"
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
